@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mundial 2026 CRM</title>
+    <meta name="description" content="CRM para gestión de inventario y ventas de jerseys del Mundial 2026">
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div id="app">
+        <!-- Sidebar / Bottom Nav -->
+        <nav id="navigation">
+            <div class="logo">
+                <h2>🏆 CRM 2026</h2>
+            </div>
+            <ul class="nav-links">
+                <li><button class="nav-btn active" data-target="dashboard-view" id="nav-dashboard">📦 Entregas</button></li>
+                <li><button class="nav-btn" data-target="inventory-view" id="nav-inventory">👕 Inventario</button></li>
+                <li><button class="nav-btn" data-target="new-sale-view" id="nav-new-sale">💰 Nueva Venta</button></li>
+                <li><button class="nav-btn" data-target="history-view" id="nav-history">📜 Historial</button></li>
+            </ul>
+        </nav>
+
+        <!-- Main Content -->
+        <main id="main-content">
+            <!-- Dashboard View (Weekly Calendar) -->
+            <section id="dashboard-view" class="view active">
+                <header class="calendar-header-wrapper">
+                    <div>
+                        <h1>Calendario de Entregas</h1>
+                        <p>Visualiza tus entregas por semana.</p>
+                    </div>
+                    <div class="calendar-nav">
+                        <button class="btn secondary" id="prev-week-btn">◀ Anterior</button>
+                        <h3 id="current-week-label">Semana del 29 Jun</h3>
+                        <button class="btn secondary" id="next-week-btn">Siguiente ▶</button>
+                    </div>
+                </header>
+                <div id="calendar-grid" class="calendar-grid">
+                    <!-- Days injected here -->
+                </div>
+            </section>
+
+            <!-- Inventory View -->
+            <section id="inventory-view" class="view hidden">
+                <header class="inventory-header-wrapper">
+                    <div>
+                        <h1>Control de Inventario</h1>
+                        <p>Gestión de jerseys de las selecciones.</p>
+                    </div>
+                    <button class="btn primary" id="open-add-product-modal">+ Nuevo Producto</button>
+                </header>
+                <div class="inventory-controls">
+                    <input type="text" id="inventory-search" placeholder="Buscar país..." class="search-input">
+                </div>
+                <div id="inventory-container" class="inventory-grid">
+                    <!-- Inventory items will be injected here -->
+                </div>
+            </section>
+
+            <!-- New Sale View -->
+            <section id="new-sale-view" class="view hidden">
+                <header>
+                    <h1>Registrar Nueva Venta</h1>
+                </header>
+                <form id="new-sale-form" class="sale-form">
+                    <div class="form-group">
+                        <label for="customer-name">Nombre del Cliente</label>
+                        <input type="text" id="customer-name" required placeholder="Ej. Juan Pérez">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Canal de Venta</label>
+                        <div class="selection-grid" id="sales-channel-grid">
+                            <button type="button" class="selection-btn active" data-value="WhatsApp">WhatsApp</button>
+                            <button type="button" class="selection-btn" data-value="Instagram">Instagram</button>
+                            <button type="button" class="selection-btn" data-value="Facebook">Facebook</button>
+                            <button type="button" class="selection-btn" data-value="Otro">Otro</button>
+                        </div>
+                        <input type="hidden" id="sales-channel" value="WhatsApp">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Método de Pago</label>
+                        <div class="selection-grid" id="payment-method-grid">
+                            <button type="button" class="selection-btn active" data-value="Transferencia">Transferencia</button>
+                            <button type="button" class="selection-btn" data-value="Efectivo">Efectivo</button>
+                            <button type="button" class="selection-btn" data-value="Tarjeta">Tarjeta</button>
+                        </div>
+                        <input type="hidden" id="payment-method" value="Transferencia">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="delivery-location">Lugar de Entrega</label>
+                        <input type="text" id="delivery-location" required placeholder="Ej. Estación Centro">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="delivery-date">Fecha de Entrega</label>
+                        <input type="date" id="delivery-date" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Productos (Selecciona jerseys)</label>
+                        <div id="product-selector-container" class="product-selector">
+                            <select id="product-dropdown">
+                                <!-- Options injected via JS -->
+                            </select>
+                            <button type="button" id="add-product-btn" class="btn secondary">Añadir</button>
+                        </div>
+                        <ul id="selected-products-list" class="selected-products">
+                            <!-- Selected products injected here -->
+                        </ul>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="sale-cost">Costo de la venta (Opcional - Para ti)</label>
+                        <input type="number" id="sale-cost" min="0" step="0.01" placeholder="0.00">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="final-price">Precio Final Cobrado</label>
+                        <input type="number" id="final-price" required min="0" step="0.01" placeholder="0.00">
+                    </div>
+
+                    <button type="submit" class="btn primary full-width">Registrar Venta</button>
+                </form>
+            </section>
+
+            <!-- History View -->
+            <section id="history-view" class="view hidden">
+                <header>
+                    <h1>Historial de Ventas</h1>
+                    <p>Registro de todas las operaciones.</p>
+                </header>
+                <div class="table-container">
+                    <table class="history-table">
+                        <thead>
+                            <tr>
+                                <th>Fecha</th>
+                                <th>Cliente</th>
+                                <th>Canal</th>
+                                <th>Total</th>
+                                <th>Estado</th>
+                            </tr>
+                        </thead>
+                        <tbody id="history-tbody">
+                            <!-- History rows injected here -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Modals -->
+    <div id="modal-overlay" class="modal-overlay hidden">
+        <!-- Add Product Modal -->
+        <div id="add-product-modal" class="modal hidden">
+            <div class="modal-header">
+                <h2>Añadir Nuevo Producto</h2>
+                <button class="close-modal-btn">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Nombre del Equipo / Producto</label>
+                    <input type="text" id="new-product-name" placeholder="Ej. Cabo Verde">
+                </div>
+                <button id="save-new-product-btn" class="btn primary full-width">Guardar Producto</button>
+            </div>
+        </div>
+
+        <!-- Delivery Details Modal -->
+        <div id="delivery-details-modal" class="modal hidden">
+            <div class="modal-header">
+                <h2>Detalles de Entrega</h2>
+                <button class="close-modal-btn">×</button>
+            </div>
+            <div class="modal-body" id="delivery-details-content">
+                <!-- Content injected via JS -->
+            </div>
+            <div class="modal-footer">
+                <button id="mark-delivered-btn" class="btn primary full-width">Marcar Entregado ✓</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
