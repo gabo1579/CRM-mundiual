@@ -109,6 +109,10 @@ const editProductDropdown = document.getElementById('edit-product-dropdown');
 const editAddProductBtn = document.getElementById('edit-add-product-btn');
 const editSelectedProductsList = document.getElementById('edit-selected-products-list');
 
+// Pedidos View Lists
+const pendingOrdersList = document.getElementById('pending-orders-list');
+const completedOrdersList = document.getElementById('completed-orders-list');
+
 // Initialization
 async function init() {
     setupNavigation();
@@ -144,11 +148,20 @@ async function loadData() {
         }
 
         const salesSnapshot = await db.collection('sales').get();
-        sales = salesSnapshot.docs.map(doc => ({id: doc.id, ...doc.data()}));
+        sales = salesSnapshot.docs.map(doc => {
+            const data = doc.data();
+            // Data Migration: If the old sale doesn't have an 'acquired' field, default it to false
+            if (data.acquired === undefined) {
+                data.acquired = false;
+                db.collection('sales').doc(doc.id).update({ acquired: false });
+            }
+            return { id: doc.id, ...data };
+        });
 
         renderInventory();
         renderCalendar();
         renderHistory();
+        renderOrders();
         updateProductDropdown();
 
     } catch (error) {
@@ -171,6 +184,7 @@ function setupNavigation() {
             document.getElementById(targetId).classList.add('active');
             
             if (targetId === 'dashboard-view') renderCalendar();
+            if (targetId === 'orders-view') renderOrders();
             if (targetId === 'inventory-view') renderInventory();
             if (targetId === 'history-view') renderHistory();
             if (targetId === 'new-sale-view') updateProductDropdown();
@@ -236,8 +250,6 @@ function openModal(modalId) {
 
 function closeModal() {
     modalOverlay.classList.add('hidden');
-    
-    // Reset Edit Form toggles
     deliveryDetailsView.classList.remove('hidden');
     deliveryDetailsEditForm.classList.add('hidden');
     document.getElementById('delivery-modal-title').textContent = "Detalles de Entrega";
@@ -410,6 +422,7 @@ async function handleSaleSubmit(e) {
         cost: document.getElementById('sale-cost').value || 0,
         finalPrice: document.getElementById('final-price').value,
         status: 'Pendiente',
+        acquired: false, // Default is NOT acquired yet
         createdAt: new Date().toISOString()
     };
 
@@ -444,7 +457,7 @@ async function handleSaleSubmit(e) {
         updateProductDropdown();
         
         alert("¡Venta registrada con éxito!");
-        document.getElementById('nav-history').click();
+        document.getElementById('nav-orders').click(); // Redirect to the new "Pedidos" tab
 
     } catch (error) {
         console.error("Error registrando la venta:", error);
@@ -540,7 +553,6 @@ window.showDeliveryDetails = function(id) {
         </ul>
     `;
     
-    // Set up mark as delivered button
     const markBtn = document.getElementById('mark-delivered-btn');
     markBtn.onclick = async function() {
         try {
@@ -548,13 +560,13 @@ window.showDeliveryDetails = function(id) {
             sale.status = 'Entregado';
             renderCalendar();
             renderHistory();
+            renderOrders();
             closeModal();
         } catch (error) {
             console.error("Error al actualizar la venta:", error);
         }
     };
 
-    // Set up Edit button trigger
     editOrderBtn.onclick = function() {
         setupEditForm(sale);
     };
@@ -562,15 +574,118 @@ window.showDeliveryDetails = function(id) {
     openModal('delivery-details-modal');
 }
 
+// Pedidos View Logic (PENDIENTES & COMPLETADOS columns)
+function renderOrders() {
+    pendingOrdersList.innerHTML = '';
+    completedOrdersList.innerHTML = '';
+
+    const pending = sales.filter(s => s.acquired === false);
+    const completed = sales.filter(s => s.acquired === true);
+
+    if (pending.length === 0) {
+        pendingOrdersList.innerHTML = '<p style="color: var(--text-muted); font-size: 0.9rem; text-align: center;">No hay pedidos pendientes.</p>';
+    } else {
+        pending.forEach(sale => {
+            const card = document.createElement('div');
+            card.className = 'order-card';
+            
+            const productsListHTML = sale.products.map(p => `<li>• ${p.name} (${p.type} - Talla ${p.size}) x${p.quantity}</li>`).join('');
+
+            card.innerHTML = `
+                <div class="order-card-info">
+                    <h3>${sale.customerName}</h3>
+                    <ul class="order-card-products">
+                        ${productsListHTML}
+                    </ul>
+                    <div class="cost-editor">
+                        <span>Costo total: $</span>
+                        <input type="number" class="inline-cost-input" value="${sale.cost || 0}" step="0.01" onblur="updateOrderCost('${sale.id}', this.value)">
+                    </div>
+                </div>
+                <div>
+                    <label class="checkbox-container">
+                        <input type="checkbox" onclick="toggleAcquisition('${sale.id}', true)">
+                        <span class="checkbox-custom"></span>
+                    </label>
+                </div>
+            `;
+            pendingOrdersList.appendChild(card);
+        });
+    }
+
+    if (completed.length === 0) {
+        completedOrdersList.innerHTML = '<p style="color: var(--text-muted); font-size: 0.9rem; text-align: center;">No hay pedidos completados.</p>';
+    } else {
+        completed.forEach(sale => {
+            const card = document.createElement('div');
+            card.className = 'order-card';
+            card.style.cursor = 'pointer';
+            card.onclick = (e) => {
+                // Ignore clicks on checkbox itself
+                if (e.target.tagName !== 'INPUT' && e.target.className !== 'checkbox-custom') {
+                    showDeliveryDetails(sale.id);
+                }
+            };
+            
+            const productsListHTML = sale.products.map(p => `<li>• ${p.name} (${p.type} - Talla ${p.size}) x${p.quantity}</li>`).join('');
+
+            card.innerHTML = `
+                <div class="order-card-info">
+                    <h3>${sale.customerName}</h3>
+                    <ul class="order-card-products">
+                        ${productsListHTML}
+                    </ul>
+                    <div class="cost-editor">
+                        <span>Costo total: $${sale.cost || 0}</span>
+                    </div>
+                </div>
+                <div>
+                    <label class="checkbox-container">
+                        <input type="checkbox" checked onclick="toggleAcquisition('${sale.id}', false)">
+                        <span class="checkbox-custom"></span>
+                    </label>
+                </div>
+            `;
+            completedOrdersList.appendChild(card);
+        });
+    }
+}
+
+window.toggleAcquisition = async function(saleId, status) {
+    const sale = sales.find(s => s.id === saleId);
+    if (sale) {
+        sale.acquired = status;
+        renderOrders(); // Fast local update
+        
+        try {
+            await db.collection('sales').doc(saleId).update({ acquired: status });
+        } catch (error) {
+            console.error("Error al actualizar la adquisición del pedido:", error);
+        }
+    }
+}
+
+window.updateOrderCost = async function(saleId, value) {
+    const sale = sales.find(s => s.id === saleId);
+    const newCost = parseFloat(value);
+    
+    if (sale && !isNaN(newCost)) {
+        sale.cost = newCost;
+        try {
+            await db.collection('sales').doc(saleId).update({ cost: newCost });
+        } catch (error) {
+            console.error("Error al actualizar el costo en Firebase:", error);
+        }
+    }
+}
+
 // Edit Mode Setup Inside Modal
 function setupEditForm(sale) {
-    // Hide View Mode, Show Edit Mode
     deliveryDetailsView.classList.add('hidden');
     deliveryDetailsEditForm.classList.remove('hidden');
     document.getElementById('delivery-modal-title').textContent = "Editar Pedido";
-    document.getElementById('delivery-modal-footer').classList.add('hidden'); // hide delivery check button
+    document.getElementById('delivery-modal-footer').classList.add('hidden');
 
-    // Populate Fields
     document.getElementById('edit-sale-id').value = sale.id;
     document.getElementById('edit-customer-name').value = sale.customerName;
     document.getElementById('edit-sales-channel').value = sale.salesChannel;
@@ -580,10 +695,8 @@ function setupEditForm(sale) {
     document.getElementById('edit-sale-cost').value = sale.cost || 0;
     document.getElementById('edit-final-price').value = sale.finalPrice;
 
-    // Load available inventory in edit selector
     updateProductDropdown(editProductDropdown);
 
-    // Load sale products into edit state
     editedSelectedProductsForSale = JSON.parse(JSON.stringify(sale.products));
     renderEditSelectedProducts();
 }
@@ -605,7 +718,6 @@ window.removeProductFromEditSale = function(index) {
     renderEditSelectedProducts();
 }
 
-// Add jersey to edit state
 editAddProductBtn.addEventListener('click', () => {
     const selectedId = editProductDropdown.value;
     if (!selectedId) return;
@@ -635,7 +747,6 @@ editAddProductBtn.addEventListener('click', () => {
     renderEditSelectedProducts();
 });
 
-// Cancel Edit
 cancelEditBtn.addEventListener('click', () => {
     deliveryDetailsView.classList.remove('hidden');
     deliveryDetailsEditForm.classList.add('hidden');
@@ -643,7 +754,6 @@ cancelEditBtn.addEventListener('click', () => {
     document.getElementById('delivery-modal-footer').classList.remove('hidden');
 });
 
-// Save Edited Order Submission
 deliveryDetailsEditForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     if (editedSelectedProductsForSale.length === 0) {
@@ -662,31 +772,27 @@ deliveryDetailsEditForm.addEventListener('submit', async (e) => {
         deliveryLocation: document.getElementById('edit-delivery-location').value,
         deliveryDate: document.getElementById('edit-delivery-date').value,
         products: [...editedSelectedProductsForSale],
-        cost: document.getElementById('edit-sale-cost').value || 0,
+        cost: parseFloat(document.getElementById('edit-sale-cost').value) || 0,
         finalPrice: document.getElementById('edit-final-price').value
     };
 
     try {
         const batch = db.batch();
 
-        // 1. Revert original stock
         originalSale.products.forEach(origProd => {
             const invItem = inventory.find(i => i.id === origProd.id);
             if (invItem) {
-                invItem.stock += origProd.quantity; // return to stock
+                invItem.stock += origProd.quantity;
             }
         });
 
-        // 2. Apply new stock deduction
         updatedSaleData.products.forEach(newProd => {
             const invItem = inventory.find(i => i.id === newProd.id);
             if (invItem) {
-                invItem.stock -= newProd.quantity; // subtract new
+                invItem.stock -= newProd.quantity;
             }
         });
 
-        // 3. Write stock changes to Firestore
-        // We write the current state of any modified items
         const unionIds = new Set([
             ...originalSale.products.map(p => p.id),
             ...updatedSaleData.products.map(p => p.id)
@@ -700,18 +806,17 @@ deliveryDetailsEditForm.addEventListener('submit', async (e) => {
             }
         });
 
-        // 4. Update the Sale document
         const saleRef = db.collection('sales').doc(saleId);
         batch.update(saleRef, updatedSaleData);
 
         await batch.commit();
 
-        // Update local memory state
         Object.assign(originalSale, updatedSaleData);
 
         renderCalendar();
         renderHistory();
         renderInventory();
+        renderOrders();
         closeModal();
 
         alert("¡Pedido actualizado con éxito!");

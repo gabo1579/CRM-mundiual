@@ -17,6 +17,7 @@
             </div>
             <ul class="nav-links">
                 <li><button class="nav-btn active" data-target="dashboard-view" id="nav-dashboard">📦 Entregas</button></li>
+                <li><button class="nav-btn" data-target="orders-view" id="nav-orders">📋 Pedidos</button></li>
                 <li><button class="nav-btn" data-target="inventory-view" id="nav-inventory">👕 Inventario</button></li>
                 <li><button class="nav-btn" data-target="new-sale-view" id="nav-new-sale">💰 Nueva Venta</button></li>
                 <li><button class="nav-btn" data-target="history-view" id="nav-history">📜 Historial</button></li>
@@ -40,6 +41,31 @@
                 </header>
                 <div id="calendar-grid" class="calendar-grid">
                     <!-- Days injected here -->
+                </div>
+            </section>
+
+            <!-- Orders View (New Tab) -->
+            <section id="orders-view" class="view hidden">
+                <header>
+                    <h1>Gestión de Pedidos (Stock)</h1>
+                    <p>Controla las prendas que necesitas conseguir y las que ya tienes listas.</p>
+                </header>
+                <div class="orders-container">
+                    <!-- Column 1: PENDIENTES -->
+                    <div class="orders-column">
+                        <h2 class="column-title danger-border">🔴 PENDIENTES (Por conseguir)</h2>
+                        <div id="pending-orders-list" class="orders-list">
+                            <!-- Pending orders injected here -->
+                        </div>
+                    </div>
+                    
+                    <!-- Column 2: COMPLETADOS -->
+                    <div class="orders-column">
+                        <h2 class="column-title success-border">🟢 COMPLETADOS (En mano)</h2>
+                        <div id="completed-orders-list" class="orders-list">
+                            <!-- Completed orders injected here -->
+                        </div>
+                    </div>
                 </div>
             </section>
 
