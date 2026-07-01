@@ -83,8 +83,6 @@ const inventoryContainer = document.getElementById('inventory-container');
 const inventorySearch = document.getElementById('inventory-search');
 const calendarGrid = document.getElementById('calendar-grid');
 const currentWeekLabel = document.getElementById('current-week-label');
-const productDropdown = document.getElementById('product-dropdown');
-const addProductBtn = document.getElementById('add-product-btn');
 const selectedProductsList = document.getElementById('selected-products-list');
 const newSaleForm = document.getElementById('new-sale-form');
 const historyTbody = document.getElementById('history-tbody');
@@ -96,18 +94,36 @@ const paymentBtns = document.querySelectorAll('#payment-method-grid .selection-b
 const channelInput = document.getElementById('sales-channel');
 const paymentInput = document.getElementById('payment-method');
 
-// Sizing & Type selectors (New Sale)
+// Autocomplete DOM Elements (New Sale)
+const saleProductSearch = document.getElementById('sale-product-search');
+const saleProductResults = document.getElementById('sale-product-results');
+const selectedProductId = document.getElementById('selected-product-id');
+
+// Custom Name DOM Elements (New Sale)
+const enableCustomNameCheckbox = document.getElementById('enable-custom-name');
+const productCustomNameInput = document.getElementById('product-custom-name');
 const productSizeSelect = document.getElementById('product-size');
 const productTypeSelect = document.getElementById('product-type');
+const addProductBtn = document.getElementById('add-product-btn');
 
 // Edit Order Modal Elements
 const deliveryDetailsView = document.getElementById('delivery-details-view');
 const deliveryDetailsEditForm = document.getElementById('delivery-details-edit-form');
 const editOrderBtn = document.getElementById('edit-order-btn');
 const cancelEditBtn = document.getElementById('cancel-edit-btn');
-const editProductDropdown = document.getElementById('edit-product-dropdown');
-const editAddProductBtn = document.getElementById('edit-add-product-btn');
 const editSelectedProductsList = document.getElementById('edit-selected-products-list');
+
+// Autocomplete DOM Elements (Edit Modal)
+const editSaleProductSearch = document.getElementById('edit-sale-product-search');
+const editSaleProductResults = document.getElementById('edit-sale-product-results');
+const editSelectedProductId = document.getElementById('edit-selected-product-id');
+
+// Custom Name DOM Elements (Edit Modal)
+const editEnableCustomNameCheckbox = document.getElementById('edit-enable-custom-name');
+const editProductCustomNameInput = document.getElementById('edit-product-custom-name');
+const editProductSizeSelect = document.getElementById('edit-product-size');
+const editProductTypeSelect = document.getElementById('edit-product-type');
+const editAddProductBtn = document.getElementById('edit-add-product-btn');
 
 // Pedidos View Lists
 const pendingOrdersList = document.getElementById('pending-orders-list');
@@ -119,6 +135,7 @@ async function init() {
     setupSelectionGrids();
     setupModals();
     setupEventListeners();
+    setupAutocompleteSearch();
 
     if (firebaseConfig.apiKey === "PON_TU_API_KEY_AQUI") {
         alert("¡Aviso! Aún no has configurado los códigos de Firebase en app.js. La base de datos no funcionará hasta que pegues tu configuración.");
@@ -150,7 +167,6 @@ async function loadData() {
         const salesSnapshot = await db.collection('sales').get();
         sales = salesSnapshot.docs.map(doc => {
             const data = doc.data();
-            // Data Migration: If the old sale doesn't have an 'acquired' field, default it to false
             if (data.acquired === undefined) {
                 data.acquired = false;
                 db.collection('sales').doc(doc.id).update({ acquired: false });
@@ -162,7 +178,6 @@ async function loadData() {
         renderCalendar();
         renderHistory();
         renderOrders();
-        updateProductDropdown();
 
     } catch (error) {
         console.error("Error cargando base de datos:", error);
@@ -187,7 +202,6 @@ function setupNavigation() {
             if (targetId === 'orders-view') renderOrders();
             if (targetId === 'inventory-view') renderInventory();
             if (targetId === 'history-view') renderHistory();
-            if (targetId === 'new-sale-view') updateProductDropdown();
         });
     });
 }
@@ -232,7 +246,6 @@ function setupModals() {
                 await db.collection('inventory').doc(id).set(newItem);
                 inventory.push(newItem);
                 renderInventory();
-                updateProductDropdown();
                 closeModal();
                 nameInput.value = '';
             } catch (error) {
@@ -256,6 +269,100 @@ function closeModal() {
     document.getElementById('delivery-modal-footer').classList.remove('hidden');
 }
 
+// Autocomplete Search Implementation
+function setupAutocompleteSearch() {
+    // New Sale Search
+    saleProductSearch.addEventListener('input', (e) => {
+        const query = e.target.value.toLowerCase();
+        if (!query) {
+            saleProductResults.innerHTML = '';
+            saleProductResults.classList.add('hidden');
+            return;
+        }
+
+        const matches = inventory.filter(item => item.name.toLowerCase().includes(query));
+        renderSearchResults(matches, saleProductResults, (selected) => {
+            saleProductSearch.value = `${selected.name} (${selected.stock > 0 ? 'Disp: ' + selected.stock : 'Sin inventario'})`;
+            selectedProductId.value = selected.id;
+            saleProductResults.innerHTML = '';
+            saleProductResults.classList.add('hidden');
+        });
+    });
+
+    // Edit Modal Search
+    editSaleProductSearch.addEventListener('input', (e) => {
+        const query = e.target.value.toLowerCase();
+        if (!query) {
+            editSaleProductResults.innerHTML = '';
+            editSaleProductResults.classList.add('hidden');
+            return;
+        }
+
+        const matches = inventory.filter(item => item.name.toLowerCase().includes(query));
+        renderSearchResults(matches, editSaleProductResults, (selected) => {
+            editSaleProductSearch.value = `${selected.name} (${selected.stock > 0 ? 'Disp: ' + selected.stock : 'Sin inventario'})`;
+            editSelectedProductId.value = selected.id;
+            editSaleProductResults.innerHTML = '';
+            editSaleProductResults.classList.add('hidden');
+        });
+    });
+
+    // Hide dropdowns when clicking outside
+    document.addEventListener('click', (e) => {
+        if (!saleProductSearch.contains(e.target) && !saleProductResults.contains(e.target)) {
+            saleProductResults.classList.add('hidden');
+        }
+        if (!editSaleProductSearch.contains(e.target) && !editSaleProductResults.contains(e.target)) {
+            editSaleProductResults.classList.add('hidden');
+        }
+    });
+}
+
+function renderSearchResults(matches, container, onSelectCallback) {
+    container.innerHTML = '';
+    if (matches.length === 0) {
+        container.innerHTML = '<div style="padding: 0.8rem; font-size: 0.9rem; color: var(--text-muted);">No se encontraron coincidencias</div>';
+        container.classList.remove('hidden');
+        return;
+    }
+
+    container.classList.remove('hidden');
+    matches.forEach(item => {
+        const div = document.createElement('div');
+        div.className = 'search-result-item';
+        
+        const isStock = item.stock > 0;
+        div.innerHTML = `
+            <span>${item.name}</span>
+            <span class="stock-tag ${isStock ? 'in-stock' : 'out-stock'}">
+                ${isStock ? 'Stock: ' + item.stock : 'Sin inventario'}
+            </span>
+        `;
+        
+        div.addEventListener('click', () => onSelectCallback(item));
+        container.appendChild(div);
+    });
+}
+
+// Personalization toggling
+enableCustomNameCheckbox.addEventListener('change', (e) => {
+    if (e.target.checked) {
+        productCustomNameInput.classList.remove('hidden');
+    } else {
+        productCustomNameInput.classList.add('hidden');
+        productCustomNameInput.value = '';
+    }
+});
+
+editEnableCustomNameCheckbox.addEventListener('change', (e) => {
+    if (e.target.checked) {
+        editProductCustomNameInput.classList.remove('hidden');
+    } else {
+        editProductCustomNameInput.classList.add('hidden');
+        editProductCustomNameInput.value = '';
+    }
+});
+
 // Inventory Logic
 function renderInventory(searchTerm = '') {
     inventoryContainer.innerHTML = '';
@@ -271,8 +378,8 @@ function renderInventory(searchTerm = '') {
         div.innerHTML = `
             <div class="item-info">
                 <h4>${item.name}</h4>
-                ${item.stock === 0 
-                    ? '<p class="danger-text">SIN INVENTARIO</p>' 
+                ${item.stock <= 0 
+                    ? `<p class="danger-text">Stock: ${item.stock} (FALTA CONSEGUIR)</p>` 
                     : `<p>En Stock</p>`}
             </div>
             <div class="stock-controls">
@@ -288,10 +395,8 @@ function renderInventory(searchTerm = '') {
 window.updateStock = async function(id, change) {
     const item = inventory.find(i => i.id === id);
     if (item) {
-        if (item.stock + change < 0) return;
         item.stock += change;
         renderInventory(inventorySearch.value);
-        updateProductDropdown();
         
         try {
             await db.collection('inventory').doc(id).update({ stock: item.stock });
@@ -311,7 +416,6 @@ window.editStock = function(id) {
     input.type = 'number';
     input.className = 'stock-input';
     input.value = item.stock;
-    input.min = 0;
     
     valContainer.innerHTML = '';
     valContainer.appendChild(input);
@@ -319,7 +423,7 @@ window.editStock = function(id) {
 
     const saveEdit = async () => {
         const newVal = parseInt(input.value);
-        if (!isNaN(newVal) && newVal >= 0 && newVal !== item.stock) {
+        if (!isNaN(newVal) && newVal !== item.stock) {
             item.stock = newVal;
             try {
                 await db.collection('inventory').doc(id).update({ stock: item.stock });
@@ -328,7 +432,6 @@ window.editStock = function(id) {
             }
         }
         renderInventory(inventorySearch.value);
-        updateProductDropdown();
     };
 
     input.addEventListener('blur', saveEdit);
@@ -340,31 +443,12 @@ window.editStock = function(id) {
 }
 
 // Sales Form Logic
-function updateProductDropdown(targetSelect = productDropdown) {
-    targetSelect.innerHTML = '';
-    const available = inventory.filter(i => i.stock > 0);
-    
-    if (available.length === 0) {
-        targetSelect.innerHTML = '<option disabled selected>No hay inventario disponible</option>';
-        if (targetSelect === productDropdown) addProductBtn.disabled = true;
-        return;
-    }
-    
-    if (targetSelect === productDropdown) addProductBtn.disabled = false;
-    available.forEach(item => {
-        const option = document.createElement('option');
-        option.value = item.id;
-        option.textContent = `${item.name} (Disp: ${item.stock})`;
-        targetSelect.appendChild(option);
-    });
-}
-
 function renderSelectedProducts() {
     selectedProductsList.innerHTML = '';
     selectedProductsForSale.forEach((prod, index) => {
         const li = document.createElement('li');
         li.innerHTML = `
-            <span>${prod.name} (${prod.type} - Talla ${prod.size}) x${prod.quantity}</span>
+            <span>${prod.name} (${prod.type} - Talla ${prod.size} - Nombre: ${prod.customName}) x${prod.quantity}</span>
             <button type="button" class="btn-small" onclick="removeProductFromSale(${index})">Quitar</button>
         `;
         selectedProductsList.appendChild(li);
@@ -377,31 +461,48 @@ window.removeProductFromSale = function(index) {
 }
 
 function handleAddProductToSale() {
-    const selectedId = productDropdown.value;
-    if (!selectedId) return;
+    const selectedId = selectedProductId.value;
+    if (!selectedId) {
+        alert("Por favor busca y selecciona un país de la lista desplegable.");
+        return;
+    }
     
     const item = inventory.find(i => i.id === selectedId);
     if (!item) return;
 
     const size = productSizeSelect.value;
     const type = productTypeSelect.value;
+    
+    // Parse custom name or S/N
+    let customName = "S/N";
+    if (enableCustomNameCheckbox.checked) {
+        const val = productCustomNameInput.value.trim();
+        if (val) customName = val;
+    }
 
-    const existing = selectedProductsForSale.find(p => p.id === selectedId && p.size === size && p.type === type);
+    const existing = selectedProductsForSale.find(p => p.id === selectedId && p.size === size && p.type === type && p.customName === customName);
     if (existing) {
-        if (existing.quantity < item.stock) {
-            existing.quantity++;
-        } else {
-            alert(`Solo tienes ${item.stock} unidades de ${item.name} en stock.`);
-        }
+        existing.quantity++;
     } else {
         selectedProductsForSale.push({
             id: item.id,
             name: item.name,
             quantity: 1,
             size: size,
-            type: type
+            type: type,
+            customName: customName
         });
     }
+    
+    // Clear autocomplete selection input
+    saleProductSearch.value = '';
+    selectedProductId.value = '';
+    
+    // Clear custom name checkbox
+    enableCustomNameCheckbox.checked = false;
+    productCustomNameInput.classList.add('hidden');
+    productCustomNameInput.value = '';
+
     renderSelectedProducts();
 }
 
@@ -422,7 +523,7 @@ async function handleSaleSubmit(e) {
         cost: document.getElementById('sale-cost').value || 0,
         finalPrice: document.getElementById('final-price').value,
         status: 'Pendiente',
-        acquired: false, // Default is NOT acquired yet
+        acquired: false,
         createdAt: new Date().toISOString()
     };
 
@@ -431,6 +532,7 @@ async function handleSaleSubmit(e) {
         sale.id = saleRef.id;
         sales.push(sale);
 
+        // Deduct from inventory (allows negative stock)
         const batch = db.batch();
         sale.products.forEach(soldProd => {
             const invItem = inventory.find(i => i.id === soldProd.id);
@@ -454,10 +556,9 @@ async function handleSaleSubmit(e) {
 
         selectedProductsForSale = [];
         renderSelectedProducts();
-        updateProductDropdown();
         
         alert("¡Venta registrada con éxito!");
-        document.getElementById('nav-orders').click(); // Redirect to the new "Pedidos" tab
+        document.getElementById('nav-orders').click();
 
     } catch (error) {
         console.error("Error registrando la venta:", error);
@@ -466,13 +567,6 @@ async function handleSaleSubmit(e) {
 }
 
 // Weekly Calendar Logic
-function getStartOfWeek(date) {
-    const d = new Date(date);
-    const day = d.getDay();
-    const diff = d.getDate() - day + (day === 0 ? -6 : 1);
-    return new Date(d.setDate(diff));
-}
-
 function renderCalendar() {
     calendarGrid.innerHTML = '';
     
@@ -539,7 +633,7 @@ window.showDeliveryDetails = function(id) {
     if (!sale) return;
 
     const content = document.getElementById('delivery-details-content');
-    const productsList = sale.products.map(p => `<li>${p.name} (${p.type || 'Local'} - Talla ${p.size || 'M'}) x${p.quantity}</li>`).join('');
+    const productsList = sale.products.map(p => `<li>${p.name} (${p.type || 'Local'} - Talla ${p.size || 'M'} - Nombre: ${p.customName || 'S/N'}) x${p.quantity}</li>`).join('');
 
     content.innerHTML = `
         <p><strong>Cliente:</strong> ${sale.customerName}</p>
@@ -589,7 +683,7 @@ function renderOrders() {
             const card = document.createElement('div');
             card.className = 'order-card';
             
-            const productsListHTML = sale.products.map(p => `<li>• ${p.name} (${p.type} - Talla ${p.size}) x${p.quantity}</li>`).join('');
+            const productsListHTML = sale.products.map(p => `<li>• ${p.name} (${p.type} - Talla ${p.size} - Nombre: ${p.customName || 'S/N'}) x${p.quantity}</li>`).join('');
 
             card.innerHTML = `
                 <div class="order-card-info">
@@ -621,13 +715,12 @@ function renderOrders() {
             card.className = 'order-card';
             card.style.cursor = 'pointer';
             card.onclick = (e) => {
-                // Ignore clicks on checkbox itself
                 if (e.target.tagName !== 'INPUT' && e.target.className !== 'checkbox-custom') {
                     showDeliveryDetails(sale.id);
                 }
             };
             
-            const productsListHTML = sale.products.map(p => `<li>• ${p.name} (${p.type} - Talla ${p.size}) x${p.quantity}</li>`).join('');
+            const productsListHTML = sale.products.map(p => `<li>• ${p.name} (${p.type} - Talla ${p.size} - Nombre: ${p.customName || 'S/N'}) x${p.quantity}</li>`).join('');
 
             card.innerHTML = `
                 <div class="order-card-info">
@@ -655,10 +748,30 @@ window.toggleAcquisition = async function(saleId, status) {
     const sale = sales.find(s => s.id === saleId);
     if (sale) {
         sale.acquired = status;
-        renderOrders(); // Fast local update
-        
+        renderOrders(); // Instant local update
+
         try {
-            await db.collection('sales').doc(saleId).update({ acquired: status });
+            // Apply +1 (or quantity) when marked as acquired (status === true), 
+            // and subtract when unchecked (status === false)
+            const batch = db.batch();
+            sale.products.forEach(prod => {
+                const invItem = inventory.find(i => i.id === prod.id);
+                if (invItem) {
+                    if (status === true) {
+                        invItem.stock += prod.quantity; // Acquired jersey: added back into stock
+                    } else {
+                        invItem.stock -= prod.quantity; // Returned to pending: revert stock back
+                    }
+                    const invRef = db.collection('inventory').doc(prod.id);
+                    batch.update(invRef, { stock: invItem.stock });
+                }
+            });
+
+            const saleRef = db.collection('sales').doc(saleId);
+            batch.update(saleRef, { acquired: status });
+
+            await batch.commit();
+            renderInventory(); // Refresh stock UI
         } catch (error) {
             console.error("Error al actualizar la adquisición del pedido:", error);
         }
@@ -695,7 +808,12 @@ function setupEditForm(sale) {
     document.getElementById('edit-sale-cost').value = sale.cost || 0;
     document.getElementById('edit-final-price').value = sale.finalPrice;
 
-    updateProductDropdown(editProductDropdown);
+    // Reset autocomplete selection fields
+    editSaleProductSearch.value = '';
+    editSelectedProductId.value = '';
+    editEnableCustomNameCheckbox.checked = false;
+    editProductCustomNameInput.classList.add('hidden');
+    editProductCustomNameInput.value = '';
 
     editedSelectedProductsForSale = JSON.parse(JSON.stringify(sale.products));
     renderEditSelectedProducts();
@@ -706,7 +824,7 @@ function renderEditSelectedProducts() {
     editedSelectedProductsForSale.forEach((prod, index) => {
         const li = document.createElement('li');
         li.innerHTML = `
-            <span>${prod.name} (${prod.type} - Talla ${prod.size}) x${prod.quantity}</span>
+            <span>${prod.name} (${prod.type} - Talla ${prod.size} - Nombre: ${prod.customName || 'S/N'}) x${prod.quantity}</span>
             <button type="button" class="btn-small" onclick="removeProductFromEditSale(${index})">Quitar</button>
         `;
         editSelectedProductsList.appendChild(li);
@@ -718,32 +836,47 @@ window.removeProductFromEditSale = function(index) {
     renderEditSelectedProducts();
 }
 
+// Add jersey to edit state
 editAddProductBtn.addEventListener('click', () => {
-    const selectedId = editProductDropdown.value;
-    if (!selectedId) return;
+    const selectedId = editSelectedProductId.value;
+    if (!selectedId) {
+        alert("Por favor busca y selecciona un país.");
+        return;
+    }
 
     const item = inventory.find(i => i.id === selectedId);
     if (!item) return;
 
-    const size = document.getElementById('edit-product-size').value;
-    const type = document.getElementById('edit-product-type').value;
+    const size = editProductSizeSelect.value;
+    const type = editProductTypeSelect.value;
 
-    const existing = editedSelectedProductsForSale.find(p => p.id === selectedId && p.size === size && p.type === type);
+    let customName = "S/N";
+    if (editEnableCustomNameCheckbox.checked) {
+        const val = editProductCustomNameInput.value.trim();
+        if (val) customName = val;
+    }
+
+    const existing = editedSelectedProductsForSale.find(p => p.id === selectedId && p.size === size && p.type === type && p.customName === customName);
     if (existing) {
-        if (existing.quantity < item.stock) {
-            existing.quantity++;
-        } else {
-            alert(`Solo tienes ${item.stock} unidades de ${item.name} en stock.`);
-        }
+        existing.quantity++;
     } else {
         editedSelectedProductsForSale.push({
             id: item.id,
             name: item.name,
             quantity: 1,
             size: size,
-            type: type
+            type: type,
+            customName: customName
         });
     }
+
+    // Reset edit select controls
+    editSaleProductSearch.value = '';
+    editSelectedProductId.value = '';
+    editEnableCustomNameCheckbox.checked = false;
+    editProductCustomNameInput.classList.add('hidden');
+    editProductCustomNameInput.value = '';
+
     renderEditSelectedProducts();
 });
 
@@ -779,6 +912,9 @@ deliveryDetailsEditForm.addEventListener('submit', async (e) => {
     try {
         const batch = db.batch();
 
+        // Revert stock of previous items ONLY if the order was not acquired.
+        // If it was already acquired, inventory stock changes were resolved duringtoggleAcquisition
+        // We revert the stock subtraction of original sales and apply new stock deduction
         originalSale.products.forEach(origProd => {
             const invItem = inventory.find(i => i.id === origProd.id);
             if (invItem) {

@@ -828,3 +828,98 @@ header p {
         max-height: 50vh;
     }
 }
+
+/* Autocomplete search styling */
+.product-selector-searchable {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    position: relative;
+    width: 100%;
+}
+
+.autocomplete-wrapper {
+    position: relative;
+    flex: 1;
+}
+
+.autocomplete-wrapper input {
+    width: 100%;
+    padding: 0.8rem;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    background: var(--bg-color);
+    color: var(--text-main);
+    font-family: 'Inter', sans-serif;
+}
+
+.autocomplete-wrapper input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+}
+
+.search-results-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    width: 100%;
+    max-height: 200px;
+    overflow-y: auto;
+    background: var(--surface-color);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    z-index: 50;
+    margin-top: 4px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+}
+
+.search-result-item {
+    padding: 0.8rem;
+    cursor: pointer;
+    border-bottom: 1px solid var(--border-color);
+    transition: background 0.2s;
+    font-size: 0.9rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.search-result-item:last-child {
+    border-bottom: none;
+}
+
+.search-result-item:hover {
+    background: var(--surface-hover);
+}
+
+.search-result-item .stock-tag {
+    font-size: 0.75rem;
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+}
+.search-result-item .stock-tag.in-stock {
+    background: rgba(16, 185, 129, 0.15);
+    color: var(--accent-color);
+}
+.search-result-item .stock-tag.out-stock {
+    background: rgba(239, 68, 68, 0.15);
+    color: var(--danger-color);
+}
+
+/* Personalization layout styling */
+.custom-name-option-wrapper {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    align-items: center;
+    margin-top: 0.8rem;
+}
+
+.personal-input {
+    flex: 1;
+    min-width: 150px;
+    max-width: 250px;
+    padding: 0.6rem 0.8rem !important;
+    border-radius: 6px !important;
+    font-size: 0.9rem;
+}
