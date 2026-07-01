@@ -17,7 +17,6 @@ const db = firebase.firestore();
 
 // ==========================================
 
-// Mock Data for Seeding Database only once
 const INITIAL_TEAMS = [
     { id: 'USA', name: 'Estados Unidos', stock: 0 },
     { id: 'CAN', name: 'Canadá', stock: 0 },
@@ -74,6 +73,7 @@ const INITIAL_TEAMS = [
 let inventory = [];
 let sales = [];
 let selectedProductsForSale = [];
+let editedSelectedProductsForSale = [];
 let currentCalendarDate = new Date();
 
 // DOM Elements
@@ -96,6 +96,19 @@ const paymentBtns = document.querySelectorAll('#payment-method-grid .selection-b
 const channelInput = document.getElementById('sales-channel');
 const paymentInput = document.getElementById('payment-method');
 
+// Sizing & Type selectors (New Sale)
+const productSizeSelect = document.getElementById('product-size');
+const productTypeSelect = document.getElementById('product-type');
+
+// Edit Order Modal Elements
+const deliveryDetailsView = document.getElementById('delivery-details-view');
+const deliveryDetailsEditForm = document.getElementById('delivery-details-edit-form');
+const editOrderBtn = document.getElementById('edit-order-btn');
+const cancelEditBtn = document.getElementById('cancel-edit-btn');
+const editProductDropdown = document.getElementById('edit-product-dropdown');
+const editAddProductBtn = document.getElementById('edit-add-product-btn');
+const editSelectedProductsList = document.getElementById('edit-selected-products-list');
+
 // Initialization
 async function init() {
     setupNavigation();
@@ -114,10 +127,8 @@ async function init() {
 // Data Management (Firestore)
 async function loadData() {
     try {
-        // Load Inventory
         const inventorySnapshot = await db.collection('inventory').get();
         if (inventorySnapshot.empty) {
-            // Seed database
             console.log("Inventario vacío, inyectando datos iniciales...");
             const batch = db.batch();
             INITIAL_TEAMS.forEach(team => {
@@ -126,18 +137,15 @@ async function loadData() {
             });
             await batch.commit();
             
-            // Reload
             const newSnapshot = await db.collection('inventory').get();
             inventory = newSnapshot.docs.map(doc => doc.data());
         } else {
             inventory = inventorySnapshot.docs.map(doc => doc.data());
         }
 
-        // Load Sales
         const salesSnapshot = await db.collection('sales').get();
         sales = salesSnapshot.docs.map(doc => ({id: doc.id, ...doc.data()}));
 
-        // Render UI after loading
         renderInventory();
         renderCalendar();
         renderHistory();
@@ -228,6 +236,12 @@ function openModal(modalId) {
 
 function closeModal() {
     modalOverlay.classList.add('hidden');
+    
+    // Reset Edit Form toggles
+    deliveryDetailsView.classList.remove('hidden');
+    deliveryDetailsEditForm.classList.add('hidden');
+    document.getElementById('delivery-modal-title').textContent = "Detalles de Entrega";
+    document.getElementById('delivery-modal-footer').classList.remove('hidden');
 }
 
 // Inventory Logic
@@ -314,22 +328,22 @@ window.editStock = function(id) {
 }
 
 // Sales Form Logic
-function updateProductDropdown() {
-    productDropdown.innerHTML = '';
+function updateProductDropdown(targetSelect = productDropdown) {
+    targetSelect.innerHTML = '';
     const available = inventory.filter(i => i.stock > 0);
     
     if (available.length === 0) {
-        productDropdown.innerHTML = '<option disabled selected>No hay inventario disponible</option>';
-        addProductBtn.disabled = true;
+        targetSelect.innerHTML = '<option disabled selected>No hay inventario disponible</option>';
+        if (targetSelect === productDropdown) addProductBtn.disabled = true;
         return;
     }
     
-    addProductBtn.disabled = false;
+    if (targetSelect === productDropdown) addProductBtn.disabled = false;
     available.forEach(item => {
         const option = document.createElement('option');
         option.value = item.id;
         option.textContent = `${item.name} (Disp: ${item.stock})`;
-        productDropdown.appendChild(option);
+        targetSelect.appendChild(option);
     });
 }
 
@@ -338,7 +352,7 @@ function renderSelectedProducts() {
     selectedProductsForSale.forEach((prod, index) => {
         const li = document.createElement('li');
         li.innerHTML = `
-            <span>${prod.name} (x${prod.quantity})</span>
+            <span>${prod.name} (${prod.type} - Talla ${prod.size}) x${prod.quantity}</span>
             <button type="button" class="btn-small" onclick="removeProductFromSale(${index})">Quitar</button>
         `;
         selectedProductsList.appendChild(li);
@@ -357,7 +371,10 @@ function handleAddProductToSale() {
     const item = inventory.find(i => i.id === selectedId);
     if (!item) return;
 
-    const existing = selectedProductsForSale.find(p => p.id === selectedId);
+    const size = productSizeSelect.value;
+    const type = productTypeSelect.value;
+
+    const existing = selectedProductsForSale.find(p => p.id === selectedId && p.size === size && p.type === type);
     if (existing) {
         if (existing.quantity < item.stock) {
             existing.quantity++;
@@ -368,7 +385,9 @@ function handleAddProductToSale() {
         selectedProductsForSale.push({
             id: item.id,
             name: item.name,
-            quantity: 1
+            quantity: 1,
+            size: size,
+            type: type
         });
     }
     renderSelectedProducts();
@@ -395,12 +414,10 @@ async function handleSaleSubmit(e) {
     };
 
     try {
-        // Guardar la venta en Firestore
         const saleRef = await db.collection('sales').add(sale);
         sale.id = saleRef.id;
         sales.push(sale);
 
-        // Actualizar el inventario en Firestore y localmente
         const batch = db.batch();
         sale.products.forEach(soldProd => {
             const invItem = inventory.find(i => i.id === soldProd.id);
@@ -412,7 +429,6 @@ async function handleSaleSubmit(e) {
         });
         await batch.commit();
 
-        // Reset Form
         newSaleForm.reset();
         
         channelBtns.forEach(b => b.classList.remove('active'));
@@ -510,7 +526,7 @@ window.showDeliveryDetails = function(id) {
     if (!sale) return;
 
     const content = document.getElementById('delivery-details-content');
-    const productsList = sale.products.map(p => `<li>${p.quantity}x ${p.name}</li>`).join('');
+    const productsList = sale.products.map(p => `<li>${p.name} (${p.type || 'Local'} - Talla ${p.size || 'M'}) x${p.quantity}</li>`).join('');
 
     content.innerHTML = `
         <p><strong>Cliente:</strong> ${sale.customerName}</p>
@@ -524,6 +540,7 @@ window.showDeliveryDetails = function(id) {
         </ul>
     `;
     
+    // Set up mark as delivered button
     const markBtn = document.getElementById('mark-delivered-btn');
     markBtn.onclick = async function() {
         try {
@@ -537,8 +554,172 @@ window.showDeliveryDetails = function(id) {
         }
     };
 
+    // Set up Edit button trigger
+    editOrderBtn.onclick = function() {
+        setupEditForm(sale);
+    };
+
     openModal('delivery-details-modal');
 }
+
+// Edit Mode Setup Inside Modal
+function setupEditForm(sale) {
+    // Hide View Mode, Show Edit Mode
+    deliveryDetailsView.classList.add('hidden');
+    deliveryDetailsEditForm.classList.remove('hidden');
+    document.getElementById('delivery-modal-title').textContent = "Editar Pedido";
+    document.getElementById('delivery-modal-footer').classList.add('hidden'); // hide delivery check button
+
+    // Populate Fields
+    document.getElementById('edit-sale-id').value = sale.id;
+    document.getElementById('edit-customer-name').value = sale.customerName;
+    document.getElementById('edit-sales-channel').value = sale.salesChannel;
+    document.getElementById('edit-payment-method').value = sale.paymentMethod;
+    document.getElementById('edit-delivery-location').value = sale.deliveryLocation;
+    document.getElementById('edit-delivery-date').value = sale.deliveryDate;
+    document.getElementById('edit-sale-cost').value = sale.cost || 0;
+    document.getElementById('edit-final-price').value = sale.finalPrice;
+
+    // Load available inventory in edit selector
+    updateProductDropdown(editProductDropdown);
+
+    // Load sale products into edit state
+    editedSelectedProductsForSale = JSON.parse(JSON.stringify(sale.products));
+    renderEditSelectedProducts();
+}
+
+function renderEditSelectedProducts() {
+    editSelectedProductsList.innerHTML = '';
+    editedSelectedProductsForSale.forEach((prod, index) => {
+        const li = document.createElement('li');
+        li.innerHTML = `
+            <span>${prod.name} (${prod.type} - Talla ${prod.size}) x${prod.quantity}</span>
+            <button type="button" class="btn-small" onclick="removeProductFromEditSale(${index})">Quitar</button>
+        `;
+        editSelectedProductsList.appendChild(li);
+    });
+}
+
+window.removeProductFromEditSale = function(index) {
+    editedSelectedProductsForSale.splice(index, 1);
+    renderEditSelectedProducts();
+}
+
+// Add jersey to edit state
+editAddProductBtn.addEventListener('click', () => {
+    const selectedId = editProductDropdown.value;
+    if (!selectedId) return;
+
+    const item = inventory.find(i => i.id === selectedId);
+    if (!item) return;
+
+    const size = document.getElementById('edit-product-size').value;
+    const type = document.getElementById('edit-product-type').value;
+
+    const existing = editedSelectedProductsForSale.find(p => p.id === selectedId && p.size === size && p.type === type);
+    if (existing) {
+        if (existing.quantity < item.stock) {
+            existing.quantity++;
+        } else {
+            alert(`Solo tienes ${item.stock} unidades de ${item.name} en stock.`);
+        }
+    } else {
+        editedSelectedProductsForSale.push({
+            id: item.id,
+            name: item.name,
+            quantity: 1,
+            size: size,
+            type: type
+        });
+    }
+    renderEditSelectedProducts();
+});
+
+// Cancel Edit
+cancelEditBtn.addEventListener('click', () => {
+    deliveryDetailsView.classList.remove('hidden');
+    deliveryDetailsEditForm.classList.add('hidden');
+    document.getElementById('delivery-modal-title').textContent = "Detalles de Entrega";
+    document.getElementById('delivery-modal-footer').classList.remove('hidden');
+});
+
+// Save Edited Order Submission
+deliveryDetailsEditForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (editedSelectedProductsForSale.length === 0) {
+        alert("Debes agregar al menos un jersey.");
+        return;
+    }
+
+    const saleId = document.getElementById('edit-sale-id').value;
+    const originalSale = sales.find(s => s.id === saleId);
+    if (!originalSale) return;
+
+    const updatedSaleData = {
+        customerName: document.getElementById('edit-customer-name').value,
+        salesChannel: document.getElementById('edit-sales-channel').value,
+        paymentMethod: document.getElementById('edit-payment-method').value,
+        deliveryLocation: document.getElementById('edit-delivery-location').value,
+        deliveryDate: document.getElementById('edit-delivery-date').value,
+        products: [...editedSelectedProductsForSale],
+        cost: document.getElementById('edit-sale-cost').value || 0,
+        finalPrice: document.getElementById('edit-final-price').value
+    };
+
+    try {
+        const batch = db.batch();
+
+        // 1. Revert original stock
+        originalSale.products.forEach(origProd => {
+            const invItem = inventory.find(i => i.id === origProd.id);
+            if (invItem) {
+                invItem.stock += origProd.quantity; // return to stock
+            }
+        });
+
+        // 2. Apply new stock deduction
+        updatedSaleData.products.forEach(newProd => {
+            const invItem = inventory.find(i => i.id === newProd.id);
+            if (invItem) {
+                invItem.stock -= newProd.quantity; // subtract new
+            }
+        });
+
+        // 3. Write stock changes to Firestore
+        // We write the current state of any modified items
+        const unionIds = new Set([
+            ...originalSale.products.map(p => p.id),
+            ...updatedSaleData.products.map(p => p.id)
+        ]);
+
+        unionIds.forEach(id => {
+            const invItem = inventory.find(i => i.id === id);
+            if (invItem) {
+                const invRef = db.collection('inventory').doc(id);
+                batch.update(invRef, { stock: invItem.stock });
+            }
+        });
+
+        // 4. Update the Sale document
+        const saleRef = db.collection('sales').doc(saleId);
+        batch.update(saleRef, updatedSaleData);
+
+        await batch.commit();
+
+        // Update local memory state
+        Object.assign(originalSale, updatedSaleData);
+
+        renderCalendar();
+        renderHistory();
+        renderInventory();
+        closeModal();
+
+        alert("¡Pedido actualizado con éxito!");
+    } catch (error) {
+        console.error("Error actualizando pedido:", error);
+        alert("Ocurrió un error al guardar los cambios en la base de datos.");
+    }
+});
 
 // History Logic
 function renderHistory() {

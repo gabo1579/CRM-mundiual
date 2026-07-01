@@ -654,3 +654,7 @@ header p {
         justify-content: space-between;
     }
 }
+
+.hidden {
+    display: none !important;
+}

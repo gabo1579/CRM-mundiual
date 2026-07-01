@@ -108,6 +108,17 @@
                             <select id="product-dropdown">
                                 <!-- Options injected via JS -->
                             </select>
+                            <select id="product-size" style="max-width: 80px;">
+                                <option value="S">S</option>
+                                <option value="M" selected>M</option>
+                                <option value="L">L</option>
+                                <option value="XL">XL</option>
+                                <option value="XXL">XXL</option>
+                            </select>
+                            <select id="product-type" style="max-width: 110px;">
+                                <option value="Local" selected>Local</option>
+                                <option value="Visitante">Visitante</option>
+                            </select>
                             <button type="button" id="add-product-btn" class="btn secondary">Añadir</button>
                         </div>
                         <ul id="selected-products-list" class="selected-products">
@@ -172,16 +183,87 @@
             </div>
         </div>
 
-        <!-- Delivery Details Modal -->
+        <!-- Delivery Details / Edit Modal -->
         <div id="delivery-details-modal" class="modal hidden">
             <div class="modal-header">
-                <h2>Detalles de Entrega</h2>
+                <h2 id="delivery-modal-title">Detalles de Entrega</h2>
                 <button class="close-modal-btn">×</button>
             </div>
-            <div class="modal-body" id="delivery-details-content">
-                <!-- Content injected via JS -->
+            <div class="modal-body">
+                <!-- View Mode Container -->
+                <div id="delivery-details-view">
+                    <div id="delivery-details-content">
+                        <!-- Content injected via JS -->
+                    </div>
+                    <button id="edit-order-btn" class="btn secondary full-width" style="margin-top: 1rem;">Editar Pedido ✏️</button>
+                </div>
+                
+                <!-- Edit Mode Container (Hidden by default) -->
+                <form id="delivery-details-edit-form" class="hidden" style="max-height: 60vh; overflow-y: auto; padding-right: 5px;">
+                    <input type="hidden" id="edit-sale-id">
+                    <div class="form-group">
+                        <label for="edit-customer-name">Nombre del Cliente</label>
+                        <input type="text" id="edit-customer-name" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-sales-channel">Canal de Venta</label>
+                        <select id="edit-sales-channel">
+                            <option value="WhatsApp">WhatsApp</option>
+                            <option value="Instagram">Instagram</option>
+                            <option value="Facebook">Facebook</option>
+                            <option value="Otro">Otro</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-payment-method">Método de Pago</label>
+                        <select id="edit-payment-method">
+                            <option value="Transferencia">Transferencia</option>
+                            <option value="Efectivo">Efectivo</option>
+                            <option value="Tarjeta">Tarjeta</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-delivery-location">Lugar de Entrega</label>
+                        <input type="text" id="edit-delivery-location" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-delivery-date">Fecha de Entrega</label>
+                        <input type="date" id="edit-delivery-date" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Productos del Pedido</label>
+                        <div class="product-selector" style="margin-bottom: 0.5rem;">
+                            <select id="edit-product-dropdown"></select>
+                            <select id="edit-product-size" style="max-width: 60px;">
+                                <option value="S">S</option>
+                                <option value="M" selected>M</option>
+                                <option value="L">L</option>
+                                <option value="XL">XL</option>
+                                <option value="XXL">XXL</option>
+                            </select>
+                            <select id="edit-product-type" style="max-width: 90px;">
+                                <option value="Local" selected>Local</option>
+                                <option value="Visitante">Visitante</option>
+                            </select>
+                            <button type="button" id="edit-add-product-btn" class="btn secondary" style="padding: 0.5rem;">+</button>
+                        </div>
+                        <ul id="edit-selected-products-list" class="selected-products"></ul>
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-sale-cost">Costo de la venta</label>
+                        <input type="number" id="edit-sale-cost" min="0" step="0.01">
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-final-price">Precio Final Cobrado</label>
+                        <input type="number" id="edit-final-price" required min="0" step="0.01">
+                    </div>
+                    <div style="display: flex; gap: 0.5rem; margin-top: 1rem; margin-bottom: 1rem;">
+                        <button type="button" id="cancel-edit-btn" class="btn secondary" style="flex: 1;">Cancelar</button>
+                        <button type="submit" class="btn primary" style="flex: 2;">Guardar</button>
+                    </div>
+                </form>
             </div>
-            <div class="modal-footer">
+            <div class="modal-footer" id="delivery-modal-footer">
                 <button id="mark-delivered-btn" class="btn primary full-width">Marcar Entregado ✓</button>
             </div>
         </div>
