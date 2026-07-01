@@ -137,20 +137,22 @@
                             </div>
                             <input type="hidden" id="selected-product-id">
                             
-                            <select id="product-size" style="max-width: 80px;">
-                                <option value="S">S</option>
-                                <option value="M" selected>M</option>
-                                <option value="L">L</option>
-                                <option value="XL">XL</option>
-                                <option value="XXL">XXL</option>
-                            </select>
-                            
-                            <select id="product-type" style="max-width: 110px;">
-                                <option value="Local" selected>Local</option>
-                                <option value="Visitante">Visitante</option>
-                            </select>
-                            
-                            <button type="button" id="add-product-btn" class="btn secondary">Añadir</button>
+                            <div class="selector-options-row">
+                                <select id="product-size">
+                                    <option value="S">S</option>
+                                    <option value="M" selected>M</option>
+                                    <option value="L">L</option>
+                                    <option value="XL">XL</option>
+                                    <option value="XXL">XXL</option>
+                                </select>
+                                
+                                <select id="product-type">
+                                    <option value="Local" selected>Local</option>
+                                    <option value="Visitante">Visitante</option>
+                                </select>
+                                
+                                <button type="button" id="add-product-btn" class="btn secondary">Añadir</button>
+                            </div>
                         </div>
 
                         <!-- Personalization Name Input -->
@@ -282,20 +284,22 @@
                             </div>
                             <input type="hidden" id="edit-selected-product-id">
                             
-                            <select id="edit-product-size" style="max-width: 60px;">
-                                <option value="S">S</option>
-                                <option value="M" selected>M</option>
-                                <option value="L">L</option>
-                                <option value="XL">XL</option>
-                                <option value="XXL">XXL</option>
-                            </select>
-                            
-                            <select id="edit-product-type" style="max-width: 90px;">
-                                <option value="Local" selected>Local</option>
-                                <option value="Visitante">Visitante</option>
-                            </select>
-                            
-                            <button type="button" id="edit-add-product-btn" class="btn secondary" style="padding: 0.5rem;">+</button>
+                            <div class="selector-options-row">
+                                <select id="edit-product-size">
+                                    <option value="S">S</option>
+                                    <option value="M" selected>M</option>
+                                    <option value="L">L</option>
+                                    <option value="XL">XL</option>
+                                    <option value="XXL">XXL</option>
+                                </select>
+                                
+                                <select id="edit-product-type">
+                                    <option value="Local" selected>Local</option>
+                                    <option value="Visitante">Visitante</option>
+                                </select>
+                                
+                                <button type="button" id="edit-add-product-btn" class="btn secondary" style="padding: 0.5rem;">+</button>
+                            </div>
                         </div>
 
                         <!-- Edit Personalization -->

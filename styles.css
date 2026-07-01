@@ -653,6 +653,28 @@ header p {
         width: 100%;
         justify-content: space-between;
     }
+    
+    .product-selector-searchable {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.8rem;
+    }
+    
+    .selector-options-row {
+        display: flex;
+        width: 100%;
+        gap: 0.5rem;
+    }
+    
+    .selector-options-row select {
+        flex: 1;
+        min-width: 0; /* Prevents overflow */
+    }
+    
+    .selector-options-row button {
+        flex: 1;
+        white-space: nowrap;
+    }
 }
 
 .hidden {
@@ -922,4 +944,10 @@ header p {
     padding: 0.6rem 0.8rem !important;
     border-radius: 6px !important;
     font-size: 0.9rem;
+}
+
+.selector-options-row {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
 }
